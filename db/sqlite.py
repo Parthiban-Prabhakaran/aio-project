@@ -45,12 +45,36 @@ CREATE TABLE contracts(
 INSERT INTO employees VALUES
  (1,'John Doe','HR','Manager','2021-02-01'),
  (2,'Jane Smith','Engineering','SDE','2022-06-12'),
- (3,'A. Patel','HR','Analyst','2023-01-10');
+ (3,'A. Patel','HR','Analyst','2023-01-10'),
+ (4,'Michael Brown','Finance','Accountant','2020-09-18'),
+ (5,'Emily Davis','Marketing','Coordinator','2022-03-22'),
+ (6,'Carlos Rodriguez','Engineering','Senior SDE','2019-11-05'),
+ (7,'Sophia Lee','Product','Product Manager','2021-07-14'),
+ (8,'David Kim','IT','Systems Administrator','2020-02-28'),
+ (9,'Priya Kumar','Finance','Financial Analyst','2023-04-17'),
+ (10,'Daniel White','Sales','Sales Executive','2021-10-09'),
+ (11,'Olivia Green','Customer Support','Support Engineer','2022-01-26'),
+ (12,'Liam Johnson','Engineering','DevOps Engineer','2020-06-30'),
+ (13,'Emma Wilson','HR','Recruiter','2023-08-11'),
+ (14,'Noah Williams','Legal','Compliance Officer','2019-12-03'),
+ (15,'Ava Thompson','Design','UX Designer','2021-05-19');
 
 INSERT INTO salaries VALUES
- (1,1,75000),
- (2,2,85000),
- (3,3,65000);
+ (1, 1, 75000),
+ (2, 2, 85000),
+ (3, 3, 65000),
+ (4, 4, 72000),
+ (5, 5, 68000),
+ (6, 6, 115000),
+ (7, 7, 105000),
+ (8, 8, 90000),
+ (9, 9, 78000),
+ (10, 10, 82000),
+ (11, 11, 70000),
+ (12, 12, 98000),
+ (13, 13, 66000),
+ (14, 14, 95000),
+ (15, 15, 88000);
 
 INSERT INTO projects VALUES
  (10,'Aquila','Contoso','2023-02-01','2023-12-31'),

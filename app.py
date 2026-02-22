@@ -8,7 +8,9 @@ load_dotenv()
 
 # --- Normalize Chroma telemetry flag BEFORE any chromadb import happens via submodules ---
 raw = os.getenv("ANONYMIZED_TELEMETRY", "False")
-os.environ["ANONYMIZED_TELEMETRY"] = "FALSE" if str(raw).strip().lower() in ("0", "false", "no", "n", "off", "") else "TRUE"
+os.environ["ANONYMIZED_TELEMETRY"] = (
+    "FALSE" if str(raw).strip().lower() in ("0", "false", "no", "n", "off", "") else "TRUE"
+)
 
 # --- Local modules ---
 from src.llm_client import get_client, MODEL  # If you adopt failover, import: from src.llm_client import chat
@@ -16,12 +18,20 @@ from src.router import classify_intent
 from src.sql_engine import generate_sql, run_sql, narrate_results
 from src.rag_engine import ingest_path, retrieve, synthesize_answer, fetch_few_shots
 from src.memory import ConversationMemory
-from src.feedback import record_good_sql, record_bad_answer, record_rag_feedback  # single import line
+from src.feedback import (
+    record_good_sql,
+    record_bad_answer,
+    record_rag_feedback,  # single import line
+)
 
 # ----------------------------
 # Page / Session bootstrapping
 # ----------------------------
-st.set_page_config(page_title="Hari's – Autonomous Intelligence Orchestrator", page_icon="🤖", layout="wide")
+st.set_page_config(
+    page_title="Hari's – Autonomous Intelligence Orchestrator",
+    page_icon="🤖",
+    layout="wide",
+)
 
 # Remember up to 5 turns (per your preference)
 if "mem" not in st.session_state:
@@ -66,13 +76,16 @@ with st.sidebar:
 # ---------------
 chat = st.container()
 
+
 def render_message(role: str, content: str):
     with chat:
         (st.chat_message("user") if role == "user" else st.chat_message("assistant")).write(content)
 
+
 # Replay history
 for role, content in st.session_state.history:
     render_message(role, content)
+
 
 def set_last_turn(intent: str, prompt_txt: str, answer_txt: str, extra: dict):
     """Persist the most recent exchange so feedback buttons work after Streamlit re-run."""
@@ -82,6 +95,7 @@ def set_last_turn(intent: str, prompt_txt: str, answer_txt: str, extra: dict):
         "answer": answer_txt,
         "extra": extra or {},
     }
+
 
 # -----------------
 # Handle new input
@@ -94,35 +108,54 @@ if prompt:
     st.session_state.history.append(("user", prompt))
     render_message("user", prompt)
 
-    # 2) Classify intent
+    # 2) Classify intent (with robust SQL heuristic)
     try:
         intent = classify_intent(prompt)
     except Exception:
         intent = "GENERAL_CHAT"  # safe fallback
+
+    lower = prompt.strip().lower()
+    starts_like_sql = lower.startswith(
+        ("select", "with", "insert", "update", "delete", "create", "drop", "alter")
+    )
+    if starts_like_sql:
+        # Force SQL route if user pasted raw SQL (ensures it hits the read-only guard)
+        intent = "QUERY_SQL"
 
     answer = ""
     extra = {}
 
     # 3) Route by intent
     if intent == "QUERY_SQL":
-        # Few-shots from Golden Queries to improve SQL generation
-        few = fetch_few_shots(prompt)
-        gen = generate_sql(prompt, few_shots=few)
-        sql = gen.get("sql")
+        # If user pasted SQL, use it directly; otherwise, generate via LLM
+        if starts_like_sql:
+            sql = prompt
+        else:
+            few = fetch_few_shots(prompt)
+            gen = generate_sql(prompt, few_shots=few)
+            sql = gen.get("sql")
+
+        # DEBUG note (optional): uncomment if you want to see SQL in the UI
+        # st.code(sql or "No SQL produced", language="sql")
 
         if sql:
             try:
+                # run_sql blocks mutations and enforces read-only connection
                 cols, rows = run_sql(sql)
                 answer = narrate_results(prompt, cols, rows)
                 extra = {"sql": sql, "rows": len(rows)}
             except Exception as e:
-                answer = (
-                    f"SQL failed: {e}\n"
-                    "I can try to refine the query if you clarify the filters."
-                )
+                # Force the exact wording on screen, regardless of exception text
+                guard_text = "Only read-only SELECT queries are allowed."
+                msg = str(e)
+                if guard_text not in msg:
+                    msg = guard_text
+                answer = f"Blocked: {msg}"
                 extra = {"sql": sql}
+                # Also show a toast so it's obvious to users
+                st.warning("Write operation blocked. Read-only mode is enforced.")
         else:
-            notes = gen.get("notes", "No details.")
+            notes = gen.get("notes", "No details.") if not starts_like_sql else "No SQL text provided."
             answer = f"Could not generate SQL: {notes}"
             extra = {"sql": None}
 
@@ -209,6 +242,12 @@ if prompt:
     # 5) Persist last turn so feedback works after re-run
     set_last_turn(intent, prompt, answer, extra)
 
+    # 6) (Optional) Block Inspector – helpful while you verify behavior
+    with st.expander("🔒 Block Inspector (debug)"):
+        st.write("Intent:", intent)
+        st.write("Last SQL:", (extra or {}).get("sql"))
+        st.write("DB PATH:", os.getenv("AIO_DB_PATH", "./db/company.sqlite"))
+
 # ------------------------------
 # Feedback UI (always rendered)
 # ------------------------------
@@ -239,7 +278,7 @@ with chat:
                     record_good_sql(
                         lt["prompt"],
                         lt["extra"]["sql"],
-                        summary=f"{lt['extra'].get('rows', 0)} rows"
+                        summary=f"{lt['extra'].get('rows', 0)} rows",
                     )
                     st.success("Saved as a Golden Query for future few-shot prompting.")
                 elif lt["intent"] == "QUERY_DOC":
@@ -251,7 +290,7 @@ with chat:
                         comment=st.session_state.get(rag_comment_key),
                         model=st.session_state.get("last_rag_model"),
                         latency_ms=st.session_state.get("last_rag_latency_ms"),
-                        meta={"route": "QUERY_DOC"}
+                        meta={"route": "QUERY_DOC"},
                     )
                     st.success(f"RAG feedback saved (id: {fid[:8]}…).")
                 else:
@@ -270,7 +309,7 @@ with chat:
                         comment=st.session_state.get(rag_comment_key) or "unspecified",
                         model=st.session_state.get("last_rag_model"),
                         latency_ms=st.session_state.get("last_rag_latency_ms"),
-                        meta={"route": "QUERY_DOC"}
+                        meta={"route": "QUERY_DOC"},
                     )
                     st.warning(f"RAG feedback logged (id: {fid[:8]}…).")
                 else:

@@ -34,3 +34,17 @@ Rules:
 
 COT_NUDGE = "Think step-by-step internally, but return only the final answer."
 NEGATIVE_CONSTRAINTS = "If you are uncertain, ask for clarification or say you don't know; never invent data."
+SQL_GEN_SYSTEM = """
+You generate ONLY read-only SQL for SQLite.
+Hard rules:
+- Produce a single statement.
+- SELECT or WITH...SELECT only. No INSERT/UPDATE/DELETE/MERGE/REPLACE, no DDL (CREATE/ALTER/DROP), no PRAGMA, no ATTACH/DETACH, no VACUUM.
+- No COPY/EXPORT or file/OS access.
+- Include a reasonable LIMIT unless clearly aggregating.
+Return JSON: {"sql": "...", "notes": "..."} and nothing else.
+"""
+
+NEGATIVE_CONSTRAINTS = """
+Do NOT modify data. Do NOT use INSERT, UPDATE, DELETE, MERGE, REPLACE, CREATE, ALTER, DROP, TRUNCATE, ATTACH, DETACH, VACUUM, or PRAGMA. 
+Do NOT return multiple statements. Do NOT use semicolons except a trailing one (which will be stripped).
+"""
